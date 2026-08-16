@@ -48,7 +48,7 @@ if user_input := st.chat_input("קליד/י את תשובתך כאן..."):
         with st.spinner("מעבד נתונים..."):
             try:
                 # אתחול קליינט חדש ונקי בכל בקשה למניעת שגיאות Client Closed
-                client = genai.Client(api_key=api_key)
+             client = genai.Client(api_key=api_key, http_options={'api_version': 'v1'})
                 
                 # המרת ההיסטוריה לפורמט הנדרש
                 contents = []
@@ -60,7 +60,7 @@ if user_input := st.chat_input("קליד/י את תשובתך כאן..."):
 
                 # יצירת הבקשה
                 response = client.models.generate_content(
-                    model="models/gemini-1.5-pro",
+                   model="gemini-1.5-flash",
                     contents=contents,
                     config=types.GenerateContentConfig(
                         system_instruction=SYSTEM_INSTRUCTION,
