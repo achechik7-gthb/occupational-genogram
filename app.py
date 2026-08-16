@@ -1,5 +1,5 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
 
 # הגדרת כותרת וממשק
 st.set_page_config(page_title="ג'נוגרם תעסוקתי", layout="wide")
@@ -13,8 +13,8 @@ if not api_key:
     st.error("מפתח API לא הוגדר במערכת. אנא הגדר GEMINI_API_KEY בהגדרות המערכת.")
     st.stop()
 
-# הגדרת המפתח עבור הספרייה של גוגל
-genai.configure(api_key=api_key)
+# אתחול הלקוח של Gemini
+client = genai.Client(api_key=api_key)
 
 # הנחיות המערכת עבור הסוכן
 SYSTEM_INSTRUCTION = """
@@ -28,22 +28,17 @@ SYSTEM_INSTRUCTION = """
 4. לאחר השלמת התרשים, ענה על כל שאלה של המשתמש לגבי תובנות, Job Crafting, או הכוונה תעסוקתית מתוך הממצאים.
 """
 
-# אתחול המודל היציב
-model = genai.GenerativeModel(
-   model_name="gemini-1.5-flash",
-    system_instruction=SYSTEM_INSTRUCTION
-)
-
-# ניהול היסטוריית שיחה
+# אתחול ה-Chat Session בתוך ה-session_state של Streamlit
 if "chat" not in st.session_state:
-    st.session_state.chat = model.start_chat(history=[])
-    # הודעת פתיחה של הסוכן
+    st.session_state.chat = client.chats.create(
+        model="gemini-2.0-flash",
+        config={"system_instruction": SYSTEM_INSTRUCTION}
+    )
     first_message = "שלום! נעים מאוד. כדי שנוכל לבנות יחד את עץ המשפחה התעסוקתי שלך, נתחיל בך: מה המקצוע או התחום העיקרי שבו אתה עוסק כיום (או עסקת בעבר), ומאיזה סגנון חיים היית רוצה ליהנות?"
     st.session_state.messages = [{"role": "model", "text": first_message}]
 
 # הצגת היסטוריית השיחה
 for msg in st.session_state.messages:
-    role_label = "🧑‍💼 אתה" if msg["role"] == "user" else "🤖 סוכן ג'נוגרם"
     with st.chat_message(msg["role"]):
         st.write(msg["text"])
 
@@ -54,7 +49,7 @@ if user_input := st.chat_input("קליד/י את תשובתך כאן..."):
     with st.chat_message("user"):
         st.write(user_input)
 
-    # שליחת התשובה למודל
+    # שליחת התשובה למודל באמצעות ה-Chat Session
     with st.chat_message("model"):
         with st.spinner("מעבד נתונים..."):
             try:
