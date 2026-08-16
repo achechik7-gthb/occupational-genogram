@@ -60,7 +60,7 @@ if user_input := st.chat_input("קליד/י את תשובתך כאן..."):
 
                 # יצירת הבקשה
                 response = client.models.generate_content(
-                    model="gemini-flash",
+                    model="models/gemini-1.5-flash",
                     contents=contents,
                     config=types.GenerateContentConfig(
                         system_instruction=SYSTEM_INSTRUCTION,
