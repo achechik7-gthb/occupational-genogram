@@ -26,7 +26,7 @@ SYSTEM_INSTRUCTION = """
 4. לאחר השלמת התרשים, ענה על כל שאלה של המשתמש לגבי תובנות, Job Crafting, או הכוונה תעסוקתית מתוך הממצאים.
 """
 
-# ניהול היסטוריית שיחה מבוססת טקסט בלבד ב-session_state
+# ניהול היסטוריית שיחה מבוססת טקסט בלבד
 if "messages" not in st.session_state:
     first_message = "שלום! נעים מאוד. כדי שנוכל לבנות יחד את עץ המשפחה התעסוקתי שלך, נתחיל בך: מה המקצוע או התחום העיקרי שבו אתה עוסק כיום (או עסקת בעבר), ומאיזה סגנון חיים היית רוצה ליהנות?"
     st.session_state.messages = [{"role": "model", "text": first_message}]
@@ -47,8 +47,8 @@ if user_input := st.chat_input("קליד/י את תשובתך כאן..."):
     with st.chat_message("model"):
         with st.spinner("מעבד נתונים..."):
             try:
-                # אתחול קליינט חדש ונקי בכל בקשה למניעת שגיאות Client Closed
-             client = genai.Client(api_key=api_key, http_options={'api_version': 'v1'})
+                # אתחול קליינט חדש עם הגדרת v1 מפורשת
+                client = genai.Client(api_key=api_key, http_options={'api_version': 'v1'})
                 
                 # המרת ההיסטוריה לפורמט הנדרש
                 contents = []
@@ -58,9 +58,9 @@ if user_input := st.chat_input("קליד/י את תשובתך כאן..."):
                         parts=[types.Part.from_text(text=m["text"])]
                     ))
 
-                # יצירת הבקשה
+                # יצירת הבקשה למודל Flash היציב
                 response = client.models.generate_content(
-                   model="gemini-1.5-flash",
+                    model="gemini-1.5-flash",
                     contents=contents,
                     config=types.GenerateContentConfig(
                         system_instruction=SYSTEM_INSTRUCTION,
