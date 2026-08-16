@@ -30,7 +30,7 @@ SYSTEM_INSTRUCTION = """
 
 # אתחול המודל היציב
 model = genai.GenerativeModel(
-    model_name="models/gemini-pro",
+   model_name="gemini-1.5-flash",
     system_instruction=SYSTEM_INSTRUCTION
 )
 
