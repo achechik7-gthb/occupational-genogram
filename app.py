@@ -61,7 +61,7 @@ if user_input := st.chat_input("קליד/י את תשובתך כאן..."):
     with st.chat_message("model"):
         with st.spinner("מעבד נתונים..."):
             response = client.models.generate_content(
-                model="gemini-2.0-flash-exp",
+                model="gemini-1.5-flash",
                 contents=contents,
                 config=types.GenerateContentConfig(
                     system_instruction=SYSTEM_INSTRUCTION,
