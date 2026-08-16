@@ -1,5 +1,6 @@
 import streamlit as st
 from google import genai
+from google.genai import types
 
 # הגדרת כותרת וממשק
 st.set_page_config(page_title="ג'נוגרם תעסוקתי", layout="wide")
@@ -13,9 +14,6 @@ if not api_key:
     st.error("מפתח API לא הוגדר במערכת. אנא הגדר GEMINI_API_KEY בהגדרות המערכת.")
     st.stop()
 
-# אתחול הלקוח של Gemini
-client = genai.Client(api_key=api_key)
-
 # הנחיות המערכת עבור הסוכן
 SYSTEM_INSTRUCTION = """
 אתה סוכן AI מומחה באבחון ותכנון קריירה באמצעות "עץ משפחה תעסוקתי" (ג'נוגרם תעסוקתי).
@@ -28,12 +26,8 @@ SYSTEM_INSTRUCTION = """
 4. לאחר השלמת התרשים, ענה על כל שאלה של המשתמש לגבי תובנות, Job Crafting, או הכוונה תעסוקתית מתוך הממצאים.
 """
 
-# אתחול ה-Chat Session בתוך ה-session_state של Streamlit
-if "chat" not in st.session_state:
-    st.session_state.chat = client.chats.create(
-        model="gemini-2.0-flash",
-        config={"system_instruction": SYSTEM_INSTRUCTION}
-    )
+# ניהול היסטוריית שיחה מבוססת טקסט בלבד ב-session_state
+if "messages" not in st.session_state:
     first_message = "שלום! נעים מאוד. כדי שנוכל לבנות יחד את עץ המשפחה התעסוקתי שלך, נתחיל בך: מה המקצוע או התחום העיקרי שבו אתה עוסק כיום (או עסקת בעבר), ומאיזה סגנון חיים היית רוצה ליהנות?"
     st.session_state.messages = [{"role": "model", "text": first_message}]
 
@@ -49,11 +43,31 @@ if user_input := st.chat_input("קליד/י את תשובתך כאן..."):
     with st.chat_message("user"):
         st.write(user_input)
 
-    # שליחת התשובה למודל באמצעות ה-Chat Session
+    # שליחת התקשורת בלחיצה
     with st.chat_message("model"):
         with st.spinner("מעבד נתונים..."):
             try:
-                response = st.session_state.chat.send_message(user_input)
+                # אתחול קליינט חדש ונקי בכל בקשה למניעת שגיאות Client Closed
+                client = genai.Client(api_key=api_key)
+                
+                # המרת ההיסטוריה לפורמט הנדרש
+                contents = []
+                for m in st.session_state.messages:
+                    contents.append(types.Content(
+                        role=m["role"],
+                        parts=[types.Part.from_text(text=m["text"])]
+                    ))
+
+                # יצירת הבקשה
+                response = client.models.generate_content(
+                    model="gemini-2.0-flash",
+                    contents=contents,
+                    config=types.GenerateContentConfig(
+                        system_instruction=SYSTEM_INSTRUCTION,
+                        temperature=0.7,
+                    )
+                )
+                
                 st.write(response.text)
                 st.session_state.messages.append({"role": "model", "text": response.text})
             except Exception as e:
