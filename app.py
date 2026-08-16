@@ -1,6 +1,5 @@
 import streamlit as st
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 
 # הגדרת כותרת וממשק
 st.set_page_config(page_title="ג'נוגרם תעסוקתי", layout="wide")
@@ -14,6 +13,9 @@ if not api_key:
     st.error("מפתח API לא הוגדר במערכת. אנא הגדר GEMINI_API_KEY בהגדרות המערכת.")
     st.stop()
 
+# אתחול הגדרות ה-API של גוגל
+genai.configure(api_key=api_key)
+
 # הנחיות המערכת עבור הסוכן
 SYSTEM_INSTRUCTION = """
 אתה סוכן AI מומחה באבחון ותכנון קריירה באמצעות "עץ משפחה תעסוקתי" (ג'נוגרם תעסוקתי).
@@ -26,49 +28,46 @@ SYSTEM_INSTRUCTION = """
 4. לאחר השלמת התרשים, ענה על כל שאלה של המשתמש לגבי תובנות, Job Crafting, או הכוונה תעסוקתית מתוך הממצאים.
 """
 
-# ניהול היסטוריית שיחה מבוססת טקסט בלבד
+# ניהול היסטוריית שיחה ב-session_state (בפורמט המתאים לספרייה)
 if "messages" not in st.session_state:
     first_message = "שלום! נעים מאוד. כדי שנוכל לבנות יחד את עץ המשפחה התעסוקתי שלך, נתחיל בך: מה המקצוע או התחום העיקרי שבו אתה עוסק כיום (או עסקת בעבר), ומאיזה סגנון חיים היית רוצה ליהנות?"
-    st.session_state.messages = [{"role": "model", "text": first_message}]
+    st.session_state.messages = [{"role": "model", "parts": [first_message]}]
 
 # הצגת היסטוריית השיחה
 for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.write(msg["text"])
+    role = "user" if msg["role"] == "user" else "model"
+    with st.chat_message(role):
+        st.write(msg["parts"][0])
 
 # קלט מהמשתמש
 if user_input := st.chat_input("קליד/י את תשובתך כאן..."):
     # הצגת הודעת המשתמש
-    st.session_state.messages.append({"role": "user", "text": user_input})
+    st.session_state.messages.append({"role": "user", "parts": [user_input]})
     with st.chat_message("user"):
         st.write(user_input)
 
-    # שליחת התקשורת בלחיצה
+    # שליחת הבקשה
     with st.chat_message("model"):
         with st.spinner("מעבד נתונים..."):
             try:
-                # אתחול קליינט חדש עם הגדרת v1 מפורשת
-                client = genai.Client(api_key=api_key, http_options={'api_version': 'v1'})
-                
-                # המרת ההיסטוריה לפורמט הנדרש
-                contents = []
-                for m in st.session_state.messages:
-                    contents.append(types.Content(
-                        role=m["role"],
-                        parts=[types.Part.from_text(text=m["text"])]
-                    ))
-
-                # יצירת הבקשה למודל Flash היציב
-                response = client.models.generate_content(
-                    model="gemini-1.5-flash",
-                    contents=contents,
-                    config=types.GenerateContentConfig(
-                        system_instruction=SYSTEM_INSTRUCTION,
-                        temperature=0.7,
-                    )
+                # אתחול המודל
+                model = genai.GenerativeModel(
+                    model_name="gemini-1.5-flash",
+                    system_instruction=SYSTEM_INSTRUCTION
                 )
                 
+                # היסטוריה מותאמת עבור ה-Chat
+                chat_history = []
+                for m in st.session_state.messages[:-1]: # ללא ההודעה האחרונה שנשלח כעת
+                    chat_history.append({
+                        "role": m["role"],
+                        "parts": m["parts"]
+                    })
+                
+                chat = model.start_chat(history=chat_history)
+                response = chat.send_message(user_input)
+                
                 st.write(response.text)
-                st.session_state.messages.append({"role": "model", "text": response.text})
+                st.session_state.messages.append({"role": "model", "parts": [response.text]})
             except Exception as e:
                 st.error(f"ארעה שגיאה בתקשורת: {e}")
